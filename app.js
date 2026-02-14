@@ -1,5 +1,5 @@
 const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
+const supabaseKey = "TU_ANON_KEY_AQUI"; // ← dejá tu key actual
 
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
@@ -10,11 +10,16 @@ let people = [];
 let meetings = [];
 let attendance = [];
 let todayMeetingId = null;
+let chartInstance = null;
 
 async function init() {
   await loadPeople();
   await ensureTodayMeeting();
   await loadAllData();
+  renderAll();
+}
+
+function renderAll() {
   renderRanking();
   renderMonthlyRanking();
   renderChart();
@@ -30,7 +35,7 @@ async function loadPeople() {
     return;
   }
 
-  people = data;
+  people = data || [];
 
   const container = document.getElementById("people-list");
   container.innerHTML = "";
@@ -58,11 +63,12 @@ async function ensureTodayMeeting() {
     return;
   }
 
-  if (data.length === 0) {
-    const { data: newMeeting, error: insertError } = await supabaseClient
-      .from("meetings")
-      .insert({ date: today })
-      .select();
+  if (!data || data.length === 0) {
+    const { data: newMeeting, error: insertError } =
+      await supabaseClient
+        .from("meetings")
+        .insert({ date: today })
+        .select();
 
     if (insertError) {
       console.error(insertError);
@@ -76,24 +82,23 @@ async function ensureTodayMeeting() {
 }
 
 async function loadAllData() {
-  const { data: m, error: mError } = await supabaseClient
+  const { data: m } = await supabaseClient
     .from("meetings")
     .select("*")
     .order("date", { ascending: false });
 
-  const { data: a, error: aError } = await supabaseClient
+  const { data: a } = await supabaseClient
     .from("attendance")
     .select("*");
-
-  if (mError) console.error(mError);
-  if (aError) console.error(aError);
 
   meetings = m || [];
   attendance = a || [];
 }
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
-  const checked = document.querySelectorAll("input[type='checkbox']:checked");
+  const checked = document.querySelectorAll(
+    "input[type='checkbox']:checked"
+  );
 
   for (let box of checked) {
     await supabaseClient.from("attendance").upsert({
@@ -105,9 +110,7 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   alert("🔥 Asistencia guardada");
 
   await loadAllData();
-  renderRanking();
-  renderMonthlyRanking();
-  renderChart();
+  renderAll();
 });
 
 function calculateStreak(personId) {
@@ -144,8 +147,10 @@ function renderRanking() {
   const div = document.getElementById("ranking");
   div.innerHTML = "";
 
-  people.forEach(p => {
-    const total = attendance.filter(a => a.person_id === p.id).length;
+  const rankingData = people.map(p => {
+    const total = attendance.filter(
+      a => a.person_id === p.id
+    ).length;
 
     const percentage =
       meetings.length > 0
@@ -154,16 +159,36 @@ function renderRanking() {
 
     const streak = calculateStreak(p.id);
     const cold = calculateCold(p.id);
-    const perfect = total === meetings.length && total > 0;
+    const perfect =
+      total === meetings.length && total > 0;
 
+    return {
+      name: p.name,
+      id: p.id,
+      total,
+      percentage,
+      streak,
+      cold,
+      perfect
+    };
+  });
+
+  rankingData.sort((a, b) => b.total - a.total);
+
+  rankingData.forEach((p, index) => {
     let badges = "";
-    if (streak >= 3) badges += " 🔥";
-    if (cold >= 2) badges += " 🧊";
-    if (perfect) badges += " 👑";
+
+    if (index === 0) badges += " 🥇";
+    if (index === 1) badges += " 🥈";
+    if (index === 2) badges += " 🥉";
+
+    if (p.streak >= 3) badges += " 🔥";
+    if (p.cold >= 2) badges += " 🧊";
+    if (p.perfect) badges += " 👑";
 
     div.innerHTML += `
       <div class="person">
-        ${p.name} - ${total} (${percentage}%) ${badges}
+        ${p.name} - ${p.total} (${p.percentage}%) ${badges}
       </div>
     `;
   });
@@ -184,29 +209,60 @@ function renderMonthlyRanking() {
     );
   });
 
-  people.forEach(p => {
+  const monthlyData = people.map(p => {
     const count = attendance.filter(a =>
       a.person_id === p.id &&
-      monthlyMeetings.find(m => m.id === a.meeting_id)
+      monthlyMeetings.find(
+        m => m.id === a.meeting_id
+      )
     ).length;
+
+    return {
+      name: p.name,
+      count
+    };
+  });
+
+  monthlyData.sort((a, b) => b.count - a.count);
+
+  monthlyData.forEach((p, index) => {
+    let medal = "";
+    if (index === 0) medal = " 🥇";
+    if (index === 1) medal = " 🥈";
+    if (index === 2) medal = " 🥉";
 
     div.innerHTML += `
       <div class="person">
-        ${p.name} - ${count}
+        ${p.name} - ${p.count}${medal}
       </div>
     `;
   });
 }
 
 function renderChart() {
-  const ctx = document.getElementById("attendanceChart");
+  const ctx = document
+    .getElementById("attendanceChart")
+    .getContext("2d");
 
-  const labels = people.map(p => p.name);
-  const dataValues = people.map(p =>
-    attendance.filter(a => a.person_id === p.id).length
-  );
+  const chartData = people.map(p => {
+    return {
+      name: p.name,
+      total: attendance.filter(
+        a => a.person_id === p.id
+      ).length
+    };
+  });
 
-  new Chart(ctx, {
+  chartData.sort((a, b) => b.total - a.total);
+
+  const labels = chartData.map(p => p.name);
+  const dataValues = chartData.map(p => p.total);
+
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx, {
     type: "bar",
     data: {
       labels: labels,
@@ -214,6 +270,12 @@ function renderChart() {
         label: "Asistencias Totales",
         data: dataValues
       }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
     }
   });
 }
