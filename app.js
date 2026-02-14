@@ -9,10 +9,12 @@ const supabaseClient = window.supabase.createClient(
 let people = [];
 let meetings = [];
 let attendance = [];
+let todayMeetingId = null;
 let chartInstance = null;
 
 async function init() {
   await loadPeople();
+  await ensureTodayMeeting();
   await loadAllData();
   renderAll();
 }
@@ -48,6 +50,37 @@ async function loadPeople() {
   });
 }
 
+async function ensureTodayMeeting() {
+  const today = new Date().toISOString().split("T")[0];
+
+  let { data, error } = await supabaseClient
+    .from("meetings")
+    .select("*")
+    .eq("date", today);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    const { data: newMeeting, error: insertError } =
+      await supabaseClient
+        .from("meetings")
+        .insert({ date: today })
+        .select();
+
+    if (insertError) {
+      console.error(insertError);
+      return;
+    }
+
+    todayMeetingId = newMeeting[0].id;
+  } else {
+    todayMeetingId = data[0].id;
+  }
+}
+
 async function loadAllData() {
   const { data: m } = await supabaseClient
     .from("meetings")
@@ -63,35 +96,18 @@ async function loadAllData() {
 }
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
-
-  const today = new Date().toISOString().split("T")[0];
-
-  const { data: newMeeting, error: meetingError } =
-    await supabaseClient
-      .from("meetings")
-      .insert({ date: today })
-      .select();
-
-  if (meetingError) {
-    console.error(meetingError);
-    alert("Error creando reunión");
-    return;
-  }
-
-  const meetingId = newMeeting[0].id;
-
   const checked = document.querySelectorAll(
     "input[type='checkbox']:checked"
   );
 
   for (let box of checked) {
-    await supabaseClient.from("attendance").insert({
-      person_id: Number(box.value),
-      meeting_id: meetingId
+    await supabaseClient.from("attendance").upsert({
+      person_id: box.value,
+      meeting_id: todayMeetingId
     });
   }
 
-  alert("🔥 Reunión creada y asistencia guardada");
+  alert("🔥 Asistencia guardada");
 
   await loadAllData();
   renderAll();
@@ -144,9 +160,8 @@ function renderRanking() {
   div.innerHTML = "";
 
   const rankingData = people.map(p => {
-
     const total = attendance.filter(
-      a => Number(a.person_id) === Number(p.id)
+      a => a.person_id === p.id
     ).length;
 
     const percentage =
@@ -206,10 +221,11 @@ function renderMonthlyRanking() {
   });
 
   const monthlyData = people.map(p => {
-
     const count = attendance.filter(a =>
-      Number(a.person_id) === Number(p.id) &&
-      monthlyMeetings.some(m => m.id === a.meeting_id)
+      a.person_id === p.id &&
+      monthlyMeetings.find(
+        m => m.id === a.meeting_id
+      )
     ).length;
 
     return { name: p.name, count };
@@ -239,7 +255,7 @@ function renderChart() {
   const chartData = people.map(p => ({
     name: p.name,
     total: attendance.filter(
-      a => Number(a.person_id) === Number(p.id)
+      a => a.person_id === p.id
     ).length
   }));
 
