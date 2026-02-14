@@ -1,5 +1,5 @@
 const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
-const supabaseKey = "TU_ANON_KEY_AQUI"; // ← dejá tu key actual
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
 
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
@@ -116,9 +116,15 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
 function calculateStreak(personId) {
   let streak = 0;
 
-  for (let m of meetings) {
-    const attended = attendance.find(
-      a => a.person_id === personId && a.meeting_id === m.id
+  const sortedMeetings = [...meetings].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
+
+  for (let meeting of sortedMeetings) {
+    const attended = attendance.some(
+      a =>
+        Number(a.person_id) === Number(personId) &&
+        a.meeting_id === meeting.id
     );
 
     if (attended) streak++;
@@ -131,9 +137,15 @@ function calculateStreak(personId) {
 function calculateCold(personId) {
   let cold = 0;
 
-  for (let m of meetings) {
-    const attended = attendance.find(
-      a => a.person_id === personId && a.meeting_id === m.id
+  const sortedMeetings = [...meetings].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
+
+  for (let meeting of sortedMeetings) {
+    const attended = attendance.some(
+      a =>
+        Number(a.person_id) === Number(personId) &&
+        a.meeting_id === meeting.id
     );
 
     if (!attended) cold++;
@@ -164,7 +176,6 @@ function renderRanking() {
 
     return {
       name: p.name,
-      id: p.id,
       total,
       percentage,
       streak,
@@ -217,10 +228,7 @@ function renderMonthlyRanking() {
       )
     ).length;
 
-    return {
-      name: p.name,
-      count
-    };
+    return { name: p.name, count };
   });
 
   monthlyData.sort((a, b) => b.count - a.count);
@@ -244,14 +252,12 @@ function renderChart() {
     .getElementById("attendanceChart")
     .getContext("2d");
 
-  const chartData = people.map(p => {
-    return {
-      name: p.name,
-      total: attendance.filter(
-        a => a.person_id === p.id
-      ).length
-    };
-  });
+  const chartData = people.map(p => ({
+    name: p.name,
+    total: attendance.filter(
+      a => a.person_id === p.id
+    ).length
+  }));
 
   chartData.sort((a, b) => b.total - a.total);
 
