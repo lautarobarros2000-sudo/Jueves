@@ -1,0 +1,35 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 700px;
+  margin: auto;
+  padding: 20px;
+  background: #f7f7f7;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.person {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: white;
+  margin-bottom: 5px;
+  border-radius: 5px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  background: black;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.badge {
+  font-size: 14px;
+  margin-left: 5px;
+}
