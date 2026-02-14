@@ -66,7 +66,6 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // 🔥 Siempre crea una reunión nueva (modo test)
   const { data: newMeeting, error: meetingError } =
     await supabaseClient
       .from("meetings")
@@ -87,7 +86,7 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
 
   for (let box of checked) {
     await supabaseClient.from("attendance").insert({
-      person_id: box.value,
+      person_id: Number(box.value),
       meeting_id: meetingId
     });
   }
@@ -145,8 +144,9 @@ function renderRanking() {
   div.innerHTML = "";
 
   const rankingData = people.map(p => {
+
     const total = attendance.filter(
-      a => a.person_id === p.id
+      a => Number(a.person_id) === Number(p.id)
     ).length;
 
     const percentage =
@@ -206,11 +206,10 @@ function renderMonthlyRanking() {
   });
 
   const monthlyData = people.map(p => {
+
     const count = attendance.filter(a =>
-      a.person_id === p.id &&
-      monthlyMeetings.find(
-        m => m.id === a.meeting_id
-      )
+      Number(a.person_id) === Number(p.id) &&
+      monthlyMeetings.some(m => m.id === a.meeting_id)
     ).length;
 
     return { name: p.name, count };
@@ -240,7 +239,7 @@ function renderChart() {
   const chartData = people.map(p => ({
     name: p.name,
     total: attendance.filter(
-      a => a.person_id === p.id
+      a => Number(a.person_id) === Number(p.id)
     ).length
   }));
 
