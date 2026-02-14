@@ -1,15 +1,20 @@
-const supabaseUrl = "TU_URL";
-const supabaseKey = "TU_ANON_KEY";
+const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
+
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 let people = [];
 let meetings = [];
+let attendance = [];
 let todayMeetingId = null;
 
 async function init() {
   await loadPeople();
   await ensureTodayMeeting();
-  await loadRanking();
+  await loadAllData();
+  renderRanking();
+  renderMonthlyRanking();
+  renderChart();
 }
 
 async function loadPeople() {
@@ -49,6 +54,14 @@ async function ensureTodayMeeting() {
   }
 }
 
+async function loadAllData() {
+  const { data: m } = await supabase.from("meetings").select("*").order("date", { ascending: false });
+  const { data: a } = await supabase.from("attendance").select("*");
+
+  meetings = m;
+  attendance = a;
+}
+
 document.getElementById("saveBtn").addEventListener("click", async () => {
   const checked = document.querySelectorAll("input[type='checkbox']:checked");
 
@@ -59,81 +72,101 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     });
   }
 
-  alert("Asistencia guardada");
-  loadRanking();
+  alert("🔥 Asistencia guardada");
+  await loadAllData();
+  renderRanking();
+  renderMonthlyRanking();
+  renderChart();
 });
 
-async function loadRanking() {
-  const { data: allMeetings } = await supabase
-    .from("meetings")
-    .select("*")
-    .order("date", { ascending: false });
+function calculateStreak(personId) {
+  let streak = 0;
+  for (let m of meetings) {
+    const attended = attendance.find(a => a.person_id === personId && a.meeting_id === m.id);
+    if (attended) streak++;
+    else break;
+  }
+  return streak;
+}
 
-  const { data: allAttendance } = await supabase
-    .from("attendance")
-    .select("*");
+function calculateCold(personId) {
+  let cold = 0;
+  for (let m of meetings) {
+    const attended = attendance.find(a => a.person_id === personId && a.meeting_id === m.id);
+    if (!attended) cold++;
+    else break;
+  }
+  return cold;
+}
 
-  meetings = allMeetings;
-
-  const rankingDiv = document.getElementById("ranking");
-  rankingDiv.innerHTML = "";
+function renderRanking() {
+  const div = document.getElementById("ranking");
+  div.innerHTML = "";
 
   people.forEach(p => {
-    const personAttendance = allAttendance.filter(a => a.person_id === p.id);
-    const total = personAttendance.length;
-
-    const streak = calculateStreak(p.id, allMeetings, allAttendance);
-    const cold = calculateCold(p.id, allMeetings, allAttendance);
-    const perfect = total === allMeetings.length && total > 0;
+    const total = attendance.filter(a => a.person_id === p.id).length;
+    const percentage = meetings.length > 0 ? ((total / meetings.length) * 100).toFixed(0) : 0;
+    const streak = calculateStreak(p.id);
+    const cold = calculateCold(p.id);
+    const perfect = total === meetings.length && total > 0;
 
     let badges = "";
-
     if (streak >= 3) badges += "🔥";
     if (cold >= 2) badges += "🧊";
     if (perfect) badges += "👑";
 
-    rankingDiv.innerHTML += `
+    div.innerHTML += `
       <div class="person">
-        ${p.name} - ${total} ${badges}
+        ${p.name} - ${total} (${percentage}%) ${badges}
       </div>
     `;
   });
 }
 
-function calculateStreak(personId, meetings, attendance) {
-  let streak = 0;
+function renderMonthlyRanking() {
+  const div = document.getElementById("monthlyRanking");
+  div.innerHTML = "";
 
-  for (let m of meetings) {
-    const attended = attendance.find(
-      a => a.person_id === personId && a.meeting_id === m.id
-    );
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-    if (attended) {
-      streak++;
-    } else {
-      break;
-    }
-  }
+  const monthlyMeetings = meetings.filter(m => {
+    const d = new Date(m.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
 
-  return streak;
+  people.forEach(p => {
+    const count = attendance.filter(a =>
+      a.person_id === p.id &&
+      monthlyMeetings.find(m => m.id === a.meeting_id)
+    ).length;
+
+    div.innerHTML += `
+      <div class="person">
+        ${p.name} - ${count}
+      </div>
+    `;
+  });
 }
 
-function calculateCold(personId, meetings, attendance) {
-  let cold = 0;
+function renderChart() {
+  const ctx = document.getElementById("attendanceChart");
 
-  for (let m of meetings) {
-    const attended = attendance.find(
-      a => a.person_id === personId && a.meeting_id === m.id
-    );
+  const labels = people.map(p => p.name);
+  const dataValues = people.map(p =>
+    attendance.filter(a => a.person_id === p.id).length
+  );
 
-    if (!attended) {
-      cold++;
-    } else {
-      break;
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Asistencias Totales",
+        data: dataValues
+      }]
     }
-  }
-
-  return cold;
+  });
 }
 
 init();
