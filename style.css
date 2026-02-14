@@ -1,35 +1,52 @@
 body {
-  font-family: Arial, sans-serif;
-  max-width: 700px;
-  margin: auto;
-  padding: 20px;
-  background: #f7f7f7;
+  font-family: 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: white;
+  margin: 0;
+  padding: 0;
 }
 
-h1, h2 {
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
   text-align: center;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
 .person {
   display: flex;
   justify-content: space-between;
-  padding: 8px;
-  background: white;
-  margin-bottom: 5px;
-  border-radius: 5px;
+  padding: 8px 0;
+  border-bottom: 1px solid #334155;
 }
 
 button {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   margin-top: 15px;
-  background: black;
-  color: white;
+  background: #22c55e;
   border: none;
+  border-radius: 8px;
+  font-weight: bold;
   cursor: pointer;
 }
 
+button:hover {
+  opacity: 0.9;
+}
+
 .badge {
-  font-size: 14px;
-  margin-left: 5px;
+  margin-left: 6px;
 }
