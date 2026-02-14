@@ -9,12 +9,10 @@ const supabaseClient = window.supabase.createClient(
 let people = [];
 let meetings = [];
 let attendance = [];
-let todayMeetingId = null;
 let chartInstance = null;
 
 async function init() {
   await loadPeople();
-  await ensureTodayMeeting();
   await loadAllData();
   renderAll();
 }
@@ -50,37 +48,6 @@ async function loadPeople() {
   });
 }
 
-async function ensureTodayMeeting() {
-  const today = new Date().toISOString().split("T")[0];
-
-  let { data, error } = await supabaseClient
-    .from("meetings")
-    .select("*")
-    .eq("date", today);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    const { data: newMeeting, error: insertError } =
-      await supabaseClient
-        .from("meetings")
-        .insert({ date: today })
-        .select();
-
-    if (insertError) {
-      console.error(insertError);
-      return;
-    }
-
-    todayMeetingId = newMeeting[0].id;
-  } else {
-    todayMeetingId = data[0].id;
-  }
-}
-
 async function loadAllData() {
   const { data: m } = await supabaseClient
     .from("meetings")
@@ -96,18 +63,36 @@ async function loadAllData() {
 }
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
+
+  const today = new Date().toISOString().split("T")[0];
+
+  // 🔥 Siempre crea una reunión nueva (modo test)
+  const { data: newMeeting, error: meetingError } =
+    await supabaseClient
+      .from("meetings")
+      .insert({ date: today })
+      .select();
+
+  if (meetingError) {
+    console.error(meetingError);
+    alert("Error creando reunión");
+    return;
+  }
+
+  const meetingId = newMeeting[0].id;
+
   const checked = document.querySelectorAll(
     "input[type='checkbox']:checked"
   );
 
   for (let box of checked) {
-    await supabaseClient.from("attendance").upsert({
+    await supabaseClient.from("attendance").insert({
       person_id: box.value,
-      meeting_id: todayMeetingId
+      meeting_id: meetingId
     });
   }
 
-  alert("🔥 Asistencia guardada");
+  alert("🔥 Reunión creada y asistencia guardada");
 
   await loadAllData();
   renderAll();
