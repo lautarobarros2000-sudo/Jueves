@@ -140,23 +140,74 @@ function renderMeetingsLog() {
         return person ? person.name : "";
       });
 
-    div.innerHTML += `
-      <div class="meeting-card">
-        <div class="meeting-header">
-          <strong>Juntada #${meetingNumber}</strong>
-          <div class="meeting-actions">
-            <button onclick="toggleDetails(${meeting.id})">Ver</button>
-            <button onclick="editMeeting(${meeting.id})">Editar</button>
-            <button onclick="deleteMeeting(${meeting.id})">Eliminar</button>
-          </div>
-        </div>
-        <div id="details-${meeting.id}" class="meeting-details">
-          ${attendees.join(", ") || "Sin asistentes"}
-        </div>
-      </div>
-    `;
+    const card = document.createElement("div");
+    card.className = "meeting-card";
+
+    const header = document.createElement("div");
+    header.className = "meeting-header";
+
+    const title = document.createElement("strong");
+    title.textContent = `Juntada #${meetingNumber} - ${meeting.date}`;
+
+    const actions = document.createElement("div");
+    actions.className = "meeting-actions";
+
+    const btnView = document.createElement("button");
+    btnView.textContent = "Ver";
+
+    const btnEdit = document.createElement("button");
+    btnEdit.textContent = "Editar";
+
+    const btnDelete = document.createElement("button");
+    btnDelete.textContent = "Eliminar";
+
+    const details = document.createElement("div");
+    details.className = "meeting-details";
+    details.style.display = "none";
+    details.textContent = attendees.join(", ") || "Sin asistentes";
+
+    btnView.addEventListener("click", () => {
+      details.style.display =
+        details.style.display === "none" ? "block" : "none";
+    });
+
+    btnEdit.addEventListener("click", async () => {
+      const newDate = prompt("Nueva fecha (YYYY-MM-DD):", meeting.date);
+      if (!newDate) return;
+
+      await supabaseClient
+        .from("meetings")
+        .update({ date: newDate })
+        .eq("id", meeting.id);
+
+      await loadAllData();
+      renderAll();
+    });
+
+    btnDelete.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar esta juntada?")) return;
+
+      await supabaseClient.from("attendance").delete().eq("meeting_id", meeting.id);
+      await supabaseClient.from("meetings").delete().eq("id", meeting.id);
+
+      await loadAllData();
+      renderAll();
+    });
+
+    actions.appendChild(btnView);
+    actions.appendChild(btnEdit);
+    actions.appendChild(btnDelete);
+
+    header.appendChild(title);
+    header.appendChild(actions);
+
+    card.appendChild(header);
+    card.appendChild(details);
+
+    div.appendChild(card);
   });
 }
+
 
 function toggleDetails(id) {
   const el = document.getElementById(`details-${id}`);
@@ -187,3 +238,4 @@ async function editMeeting(id) {
 }
 
 init();
+
