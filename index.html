@@ -5,7 +5,6 @@
   <title>Juntada Tracker</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -14,7 +13,7 @@
   <h1>🍻 Juntada Tracker</h1>
 
   <div class="card">
-    <h2>📅 Asistencia de Hoy</h2>
+    <h2>📅 Cargar Asistencia</h2>
     <div id="people-list"></div>
     <button id="saveBtn">Guardar Asistencia</button>
   </div>
@@ -25,13 +24,8 @@
   </div>
 
   <div class="card">
-    <h2>📊 Asistencias Totales</h2>
-    <canvas id="attendanceChart"></canvas>
-  </div>
-
-  <div class="card">
-    <h2>📅 Ranking Mensual</h2>
-    <div id="monthlyRanking"></div>
+    <h2>📜 Historial de Juntadas</h2>
+    <div id="meetingsLog"></div>
   </div>
 
 </div>
