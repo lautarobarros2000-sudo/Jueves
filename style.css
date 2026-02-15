@@ -1,9 +1,8 @@
 body {
   font-family: 'Segoe UI', sans-serif;
-  background: #0f172a;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
   color: white;
   margin: 0;
-  padding: 0;
 }
 
 .container {
@@ -20,9 +19,9 @@ h1 {
 .card {
   background: #1e293b;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   margin-bottom: 25px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
 }
 
 .person {
@@ -33,9 +32,7 @@ h1 {
 }
 
 button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 15px;
+  padding: 8px 12px;
   background: #22c55e;
   border: none;
   border-radius: 8px;
@@ -44,9 +41,34 @@ button {
 }
 
 button:hover {
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
-.badge {
-  margin-left: 6px;
+.meeting-card {
+  background: #0f172a;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.meeting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meeting-actions button {
+  margin-left: 5px;
+  background: #3b82f6;
+}
+
+.meeting-actions button:last-child {
+  background: #ef4444;
+}
+
+.meeting-details {
+  display: none;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #cbd5e1;
 }
