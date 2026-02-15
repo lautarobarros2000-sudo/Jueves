@@ -1,5 +1,5 @@
 const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s"; // deja tu key
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
 
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
@@ -81,8 +81,14 @@ async function loadAllData() {
 document.getElementById("saveBtn").addEventListener("click", async () => {
   const checked = document.querySelectorAll("input[type='checkbox']:checked");
 
+  // borrar asistencias actuales del día
+  await supabaseClient
+    .from("attendance")
+    .delete()
+    .eq("meeting_id", todayMeetingId);
+
   for (let box of checked) {
-    await supabaseClient.from("attendance").upsert({
+    await supabaseClient.from("attendance").insert({
       person_id: box.value,
       meeting_id: todayMeetingId
     });
@@ -166,24 +172,80 @@ function renderMeetingsLog() {
     details.style.display = "none";
     details.textContent = attendees.join(", ") || "Sin asistentes";
 
+    // Ver asistentes
     btnView.addEventListener("click", () => {
       details.style.display =
         details.style.display === "none" ? "block" : "none";
     });
 
+    // Editar asistentes
     btnEdit.addEventListener("click", async () => {
-      const newDate = prompt("Nueva fecha (YYYY-MM-DD):", meeting.date);
-      if (!newDate) return;
+      const currentAttendees = attendance
+        .filter(a => a.meeting_id === meeting.id)
+        .map(a => Number(a.person_id));
 
-      await supabaseClient
-        .from("meetings")
-        .update({ date: newDate })
-        .eq("id", meeting.id);
+      let checklistHTML = people.map(p => {
+        const checked = currentAttendees.includes(p.id) ? "checked" : "";
+        return `
+          <label style="display:block;margin-bottom:5px;">
+            <input type="checkbox" value="${p.id}" ${checked} />
+            ${p.name}
+          </label>
+        `;
+      }).join("");
 
-      await loadAllData();
-      renderAll();
+      const container = document.createElement("div");
+      container.innerHTML = `
+        <div style="background:#1e293b;padding:20px;border-radius:10px;max-height:400px;overflow:auto;color:white;">
+          <h3>Editar asistentes</h3>
+          ${checklistHTML}
+          <button id="saveEditBtn" style="margin-top:15px;">Guardar Cambios</button>
+        </div>
+      `;
+
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.top = 0;
+      overlay.style.left = 0;
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.background = "rgba(0,0,0,0.7)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.appendChild(container);
+
+      document.body.appendChild(overlay);
+
+      document.getElementById("saveEditBtn").addEventListener("click", async () => {
+        const checkedBoxes = container.querySelectorAll("input[type='checkbox']:checked");
+
+        await supabaseClient
+          .from("attendance")
+          .delete()
+          .eq("meeting_id", meeting.id);
+
+        for (let box of checkedBoxes) {
+          await supabaseClient.from("attendance").insert({
+            meeting_id: meeting.id,
+            person_id: box.value
+          });
+        }
+
+        document.body.removeChild(overlay);
+
+        await loadAllData();
+        renderAll();
+      });
+
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+        }
+      });
     });
 
+    // Eliminar juntada
     btnDelete.addEventListener("click", async () => {
       if (!confirm("¿Eliminar esta juntada?")) return;
 
@@ -208,34 +270,4 @@ function renderMeetingsLog() {
   });
 }
 
-
-function toggleDetails(id) {
-  const el = document.getElementById(`details-${id}`);
-  el.style.display = el.style.display === "block" ? "none" : "block";
-}
-
-async function deleteMeeting(id) {
-  if (!confirm("¿Eliminar esta juntada?")) return;
-
-  await supabaseClient.from("attendance").delete().eq("meeting_id", id);
-  await supabaseClient.from("meetings").delete().eq("id", id);
-
-  await loadAllData();
-  renderAll();
-}
-
-async function editMeeting(id) {
-  const newDate = prompt("Nueva fecha (YYYY-MM-DD):");
-  if (!newDate) return;
-
-  await supabaseClient
-    .from("meetings")
-    .update({ date: newDate })
-    .eq("id", id);
-
-  await loadAllData();
-  renderAll();
-}
-
 init();
-
