@@ -1,5 +1,5 @@
 const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s"; // deja tu key
 
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
@@ -10,7 +10,6 @@ let people = [];
 let meetings = [];
 let attendance = [];
 let todayMeetingId = null;
-let chartInstance = null;
 
 async function init() {
   await loadPeople();
@@ -21,19 +20,14 @@ async function init() {
 
 function renderAll() {
   renderRanking();
-  renderMonthlyRanking();
-  renderChart();
+  renderMeetingsLog();
 }
 
 async function loadPeople() {
-  const { data, error } = await supabaseClient
+  const { data } = await supabaseClient
     .from("people")
-    .select("*");
-
-  if (error) {
-    console.error(error);
-    return;
-  }
+    .select("*")
+    .order("name");
 
   people = data || [];
 
@@ -42,10 +36,10 @@ async function loadPeople() {
 
   people.forEach(p => {
     container.innerHTML += `
-      <div class="person">
+      <label class="person">
         ${p.name}
         <input type="checkbox" value="${p.id}" />
-      </div>
+      </label>
     `;
   });
 }
@@ -53,27 +47,16 @@ async function loadPeople() {
 async function ensureTodayMeeting() {
   const today = new Date().toISOString().split("T")[0];
 
-  let { data, error } = await supabaseClient
+  const { data } = await supabaseClient
     .from("meetings")
     .select("*")
     .eq("date", today);
 
-  if (error) {
-    console.error(error);
-    return;
-  }
-
   if (!data || data.length === 0) {
-    const { data: newMeeting, error: insertError } =
-      await supabaseClient
-        .from("meetings")
-        .insert({ date: today })
-        .select();
-
-    if (insertError) {
-      console.error(insertError);
-      return;
-    }
+    const { data: newMeeting } = await supabaseClient
+      .from("meetings")
+      .insert({ date: today })
+      .select();
 
     todayMeetingId = newMeeting[0].id;
   } else {
@@ -85,7 +68,7 @@ async function loadAllData() {
   const { data: m } = await supabaseClient
     .from("meetings")
     .select("*")
-    .order("date", { ascending: false });
+    .order("date", { ascending: true });
 
   const { data: a } = await supabaseClient
     .from("attendance")
@@ -96,9 +79,7 @@ async function loadAllData() {
 }
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
-  const checked = document.querySelectorAll(
-    "input[type='checkbox']:checked"
-  );
+  const checked = document.querySelectorAll("input[type='checkbox']:checked");
 
   for (let box of checked) {
     await supabaseClient.from("attendance").upsert({
@@ -107,183 +88,102 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     });
   }
 
-  alert("🔥 Asistencia guardada");
+  alert("Asistencia guardada 🔥");
 
   await loadAllData();
   renderAll();
 });
-
-function calculateStreak(personId) {
-  let streak = 0;
-
-  const sortedMeetings = [...meetings].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
-  );
-
-  for (let meeting of sortedMeetings) {
-    const attended = attendance.some(
-      a =>
-        Number(a.person_id) === Number(personId) &&
-        a.meeting_id === meeting.id
-    );
-
-    if (attended) streak++;
-    else break;
-  }
-
-  return streak;
-}
-
-function calculateCold(personId) {
-  let cold = 0;
-
-  const sortedMeetings = [...meetings].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
-  );
-
-  for (let meeting of sortedMeetings) {
-    const attended = attendance.some(
-      a =>
-        Number(a.person_id) === Number(personId) &&
-        a.meeting_id === meeting.id
-    );
-
-    if (!attended) cold++;
-    else break;
-  }
-
-  return cold;
-}
 
 function renderRanking() {
   const div = document.getElementById("ranking");
   div.innerHTML = "";
 
   const rankingData = people.map(p => {
-    const total = attendance.filter(
-      a => a.person_id === p.id
-    ).length;
+    const total = attendance.filter(a => a.person_id === p.id).length;
 
     const percentage =
       meetings.length > 0
         ? ((total / meetings.length) * 100).toFixed(0)
         : 0;
 
-    const streak = calculateStreak(p.id);
-    const cold = calculateCold(p.id);
-    const perfect =
-      total === meetings.length && total > 0;
-
-    return {
-      name: p.name,
-      total,
-      percentage,
-      streak,
-      cold,
-      perfect
-    };
+    return { name: p.name, total, percentage };
   });
 
   rankingData.sort((a, b) => b.total - a.total);
 
   rankingData.forEach((p, index) => {
-    let badges = "";
-
-    if (index === 0) badges += " 🥇";
-    if (index === 1) badges += " 🥈";
-    if (index === 2) badges += " 🥉";
-
-    if (p.streak >= 3) badges += " 🔥";
-    if (p.cold >= 2) badges += " 🧊";
-    if (p.perfect) badges += " 👑";
+    let medal = "";
+    if (index === 0) medal = "🥇";
+    if (index === 1) medal = "🥈";
+    if (index === 2) medal = "🥉";
 
     div.innerHTML += `
       <div class="person">
-        ${p.name} - ${p.total} (${p.percentage}%) ${badges}
+        ${p.name}
+        <span>${p.total} (${p.percentage}%) ${medal}</span>
       </div>
     `;
   });
 }
 
-function renderMonthlyRanking() {
-  const div = document.getElementById("monthlyRanking");
+function renderMeetingsLog() {
+  const div = document.getElementById("meetingsLog");
   div.innerHTML = "";
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  meetings.forEach((meeting, index) => {
+    const meetingNumber = index + 1;
 
-  const monthlyMeetings = meetings.filter(m => {
-    const d = new Date(m.date);
-    return (
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear
-    );
-  });
-
-  const monthlyData = people.map(p => {
-    const count = attendance.filter(a =>
-      a.person_id === p.id &&
-      monthlyMeetings.find(
-        m => m.id === a.meeting_id
-      )
-    ).length;
-
-    return { name: p.name, count };
-  });
-
-  monthlyData.sort((a, b) => b.count - a.count);
-
-  monthlyData.forEach((p, index) => {
-    let medal = "";
-    if (index === 0) medal = " 🥇";
-    if (index === 1) medal = " 🥈";
-    if (index === 2) medal = " 🥉";
+    const attendees = attendance
+      .filter(a => a.meeting_id === meeting.id)
+      .map(a => {
+        const person = people.find(p => p.id === a.person_id);
+        return person ? person.name : "";
+      });
 
     div.innerHTML += `
-      <div class="person">
-        ${p.name} - ${p.count}${medal}
+      <div class="meeting-card">
+        <div class="meeting-header">
+          <strong>Juntada #${meetingNumber}</strong>
+          <div class="meeting-actions">
+            <button onclick="toggleDetails(${meeting.id})">Ver</button>
+            <button onclick="editMeeting(${meeting.id})">Editar</button>
+            <button onclick="deleteMeeting(${meeting.id})">Eliminar</button>
+          </div>
+        </div>
+        <div id="details-${meeting.id}" class="meeting-details">
+          ${attendees.join(", ") || "Sin asistentes"}
+        </div>
       </div>
     `;
   });
 }
 
-function renderChart() {
-  const ctx = document
-    .getElementById("attendanceChart")
-    .getContext("2d");
+function toggleDetails(id) {
+  const el = document.getElementById(`details-${id}`);
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
 
-  const chartData = people.map(p => ({
-    name: p.name,
-    total: attendance.filter(
-      a => a.person_id === p.id
-    ).length
-  }));
+async function deleteMeeting(id) {
+  if (!confirm("¿Eliminar esta juntada?")) return;
 
-  chartData.sort((a, b) => b.total - a.total);
+  await supabaseClient.from("attendance").delete().eq("meeting_id", id);
+  await supabaseClient.from("meetings").delete().eq("id", id);
 
-  const labels = chartData.map(p => p.name);
-  const dataValues = chartData.map(p => p.total);
+  await loadAllData();
+  renderAll();
+}
 
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
+async function editMeeting(id) {
+  const newDate = prompt("Nueva fecha (YYYY-MM-DD):");
+  if (!newDate) return;
 
-  chartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Asistencias Totales",
-        data: dataValues
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false }
-      }
-    }
-  });
+  await supabaseClient
+    .from("meetings")
+    .update({ date: newDate })
+    .eq("id", id);
+
+  await loadAllData();
+  renderAll();
 }
 
 init();
