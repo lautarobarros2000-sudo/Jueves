@@ -24,6 +24,10 @@ function renderAll() {
   renderStreaks();
 }
 
+/* =========================
+   CARGA DE DATOS
+========================= */
+
 async function loadPeople() {
   const { data } = await supabaseClient
     .from("people")
@@ -59,7 +63,7 @@ async function ensureTodayMeeting() {
       .insert({ date: today })
       .select();
 
-    todayMeetingId = newMeeting[0].id;
+    todayMeetingId = newMeeting?.[0]?.id;
   } else {
     todayMeetingId = data[0].id;
   }
@@ -79,11 +83,21 @@ async function loadAllData() {
   attendance = a || [];
 }
 
+/* =========================
+   GUARDAR ASISTENCIA
+========================= */
+
 document.getElementById("saveBtn").addEventListener("click", async () => {
   const checked = document.querySelectorAll("input[type='checkbox']:checked");
 
+  // primero borramos registros previos de hoy
+  await supabaseClient
+    .from("attendance")
+    .delete()
+    .eq("meeting_id", todayMeetingId);
+
   for (let box of checked) {
-    await supabaseClient.from("attendance").upsert({
+    await supabaseClient.from("attendance").insert({
       person_id: box.value,
       meeting_id: todayMeetingId
     });
@@ -94,6 +108,10 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   await loadAllData();
   renderAll();
 });
+
+/* =========================
+   RANKING
+========================= */
 
 function renderRanking() {
   const div = document.getElementById("ranking");
@@ -127,9 +145,9 @@ function renderRanking() {
   });
 }
 
-/* ===============================
-   🔥 NUEVA FUNCIÓN DE RACHAS
-================================ */
+/* =========================
+   🔥 RACHAS
+========================= */
 
 function renderStreaks() {
   const div = document.getElementById("streaks");
@@ -140,19 +158,24 @@ function renderStreaks() {
     return;
   }
 
+  // ignorar la juntada de hoy si todavía no tiene asistentes
+  const validMeetings = meetings.filter(m => {
+    const attendeesCount = attendance.filter(a => a.meeting_id === m.id).length;
+    return attendeesCount > 0;
+  });
+
   people.forEach(person => {
     let streak = 0;
-    let lastType = null; // "present" o "absent"
+    let lastType = null;
 
-    // recorremos desde la última juntada hacia atrás
-    for (let i = meetings.length - 1; i >= 0; i--) {
-      const meeting = meetings[i];
+    for (let i = validMeetings.length - 1; i >= 0; i--) {
+      const meeting = validMeetings[i];
 
       const wasPresent = attendance.some(
         a => a.person_id === person.id && a.meeting_id === meeting.id
       );
 
-      if (i === meetings.length - 1) {
+      if (i === validMeetings.length - 1) {
         lastType = wasPresent ? "present" : "absent";
         streak = 1;
       } else {
@@ -182,9 +205,9 @@ function renderStreaks() {
   });
 }
 
-/* ===============================
-   📅 HISTORIAL
-================================ */
+/* =========================
+   HISTORIAL CON VER/EDITAR/ELIMINAR
+========================= */
 
 function renderMeetingsLog() {
   const div = document.getElementById("meetingsLog");
@@ -200,14 +223,70 @@ function renderMeetingsLog() {
         return person ? person.name : "";
       });
 
-    div.innerHTML += `
-      <div class="meeting-card">
-        <strong>Juntada #${meetingNumber} - ${meeting.date}</strong>
-        <div>${attendees.join(", ") || "Sin asistentes"}</div>
-      </div>
-    `;
+    const card = document.createElement("div");
+    card.className = "meeting-card";
+
+    const header = document.createElement("div");
+    header.className = "meeting-header";
+
+    const title = document.createElement("strong");
+    title.textContent = `Juntada #${meetingNumber} - ${meeting.date}`;
+
+    const actions = document.createElement("div");
+
+    const btnView = document.createElement("button");
+    btnView.textContent = "Ver";
+
+    const btnEdit = document.createElement("button");
+    btnEdit.textContent = "Editar";
+
+    const btnDelete = document.createElement("button");
+    btnDelete.textContent = "Eliminar";
+
+    const details = document.createElement("div");
+    details.style.display = "none";
+    details.textContent = attendees.join(", ") || "Sin asistentes";
+
+    btnView.onclick = () => {
+      details.style.display =
+        details.style.display === "none" ? "block" : "none";
+    };
+
+    btnEdit.onclick = async () => {
+      const newDate = prompt("Nueva fecha (YYYY-MM-DD):", meeting.date);
+      if (!newDate) return;
+
+      await supabaseClient
+        .from("meetings")
+        .update({ date: newDate })
+        .eq("id", meeting.id);
+
+      await loadAllData();
+      renderAll();
+    };
+
+    btnDelete.onclick = async () => {
+      if (!confirm("¿Eliminar esta juntada?")) return;
+
+      await supabaseClient.from("attendance").delete().eq("meeting_id", meeting.id);
+      await supabaseClient.from("meetings").delete().eq("id", meeting.id);
+
+      await loadAllData();
+      renderAll();
+    };
+
+    actions.appendChild(btnView);
+    actions.appendChild(btnEdit);
+    actions.appendChild(btnDelete);
+
+    header.appendChild(title);
+    header.appendChild(actions);
+
+    card.appendChild(header);
+    card.appendChild(details);
+
+    div.appendChild(card);
   });
 }
 
 init();
-
