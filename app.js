@@ -237,7 +237,7 @@ function renderMeetingsLog() {
     const btnView = document.createElement("button");
     btnView.textContent = "Ver";
 
-    btnEdit.addEventListener("click", async () => {
+    const btnEdit.addEventListener("click", async () => {
   // Obtener asistentes actuales
   const currentAttendees = attendance
     .filter(a => a.meeting_id === meeting.id)
