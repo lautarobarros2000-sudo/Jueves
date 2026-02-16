@@ -237,7 +237,22 @@ function renderMeetingsLog() {
     const btnView = document.createElement("button");
     btnView.textContent = "Ver";
 
-    const btnEdit.addEventListener("click", async () => {
+    const btnEdit = document.createElement("button");
+    btnClick.textContent = "Editar"
+
+    const btnDelete = document.createElement("button");
+    btnDelete.textContent = "Eliminar";
+
+    const details = document.createElement("div");
+    details.style.display = "none";
+    details.textContent = attendees.join(", ") || "Sin asistentes";
+
+    btnView.onclick = () => {
+      details.style.display =
+        details.style.display === "none" ? "block" : "none";
+    };
+
+    btnEdit.addEventListener("click", async () => {
   // Obtener asistentes actuales
   const currentAttendees = attendance
     .filter(a => a.meeting_id === meeting.id)
@@ -308,31 +323,6 @@ function renderMeetingsLog() {
     }
   });
 });
-
-    const btnDelete = document.createElement("button");
-    btnDelete.textContent = "Eliminar";
-
-    const details = document.createElement("div");
-    details.style.display = "none";
-    details.textContent = attendees.join(", ") || "Sin asistentes";
-
-    btnView.onclick = () => {
-      details.style.display =
-        details.style.display === "none" ? "block" : "none";
-    };
-
-    btnEdit.onclick = async () => {
-      const newDate = prompt("Nueva fecha (YYYY-MM-DD):", meeting.date);
-      if (!newDate) return;
-
-      await supabaseClient
-        .from("meetings")
-        .update({ date: newDate })
-        .eq("id", meeting.id);
-
-      await loadAllData();
-      renderAll();
-    };
 
     btnDelete.onclick = async () => {
       if (!confirm("¿Eliminar esta juntada?")) return;
