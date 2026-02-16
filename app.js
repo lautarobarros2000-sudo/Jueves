@@ -1,5 +1,5 @@
 const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
-const supabaseKey = "TU_KEY_AQUI";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
 
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
@@ -210,3 +210,4 @@ function renderMeetingsLog() {
 }
 
 init();
+
