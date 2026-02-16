@@ -237,8 +237,77 @@ function renderMeetingsLog() {
     const btnView = document.createElement("button");
     btnView.textContent = "Ver";
 
-    const btnEdit = document.createElement("button");
-    btnEdit.textContent = "Editar";
+    btnEdit.addEventListener("click", async () => {
+  // Obtener asistentes actuales
+  const currentAttendees = attendance
+    .filter(a => a.meeting_id === meeting.id)
+    .map(a => Number(a.person_id));
+
+  // Crear contenido del modal simple
+  let checklistHTML = people.map(p => {
+    const checked = currentAttendees.includes(p.id) ? "checked" : "";
+    return `
+      <label style="display:block;margin-bottom:5px;">
+        <input type="checkbox" value="${p.id}" ${checked} />
+        ${p.name}
+      </label>
+    `;
+  }).join("");
+
+  const container = document.createElement("div");
+  container.innerHTML = `
+    <div style="background:#1e293b;padding:20px;border-radius:10px;max-height:400px;overflow:auto;">
+      <h3>Editar asistentes</h3>
+      ${checklistHTML}
+      <button id="saveEditBtn" style="margin-top:15px;">Guardar Cambios</button>
+    </div>
+  `;
+
+  // Crear overlay
+  const overlay = document.createElement("div");
+  overlay.style.position = "fixed";
+  overlay.style.top = 0;
+  overlay.style.left = 0;
+  overlay.style.width = "100%";
+  overlay.style.height = "100%";
+  overlay.style.background = "rgba(0,0,0,0.7)";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.appendChild(container);
+
+  document.body.appendChild(overlay);
+
+  document.getElementById("saveEditBtn").addEventListener("click", async () => {
+    const checkedBoxes = container.querySelectorAll("input[type='checkbox']:checked");
+
+    // 1️⃣ borrar asistencias actuales
+    await supabaseClient
+      .from("attendance")
+      .delete()
+      .eq("meeting_id", meeting.id);
+
+    // 2️⃣ insertar nuevas
+    for (let box of checkedBoxes) {
+      await supabaseClient.from("attendance").insert({
+        meeting_id: meeting.id,
+        person_id: box.value
+      });
+    }
+
+    document.body.removeChild(overlay);
+
+    await loadAllData();
+    renderAll();
+  });
+
+  // cerrar si clickean afuera
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      document.body.removeChild(overlay);
+    }
+  });
+});
 
     const btnDelete = document.createElement("button");
     btnDelete.textContent = "Eliminar";
