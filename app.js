@@ -145,27 +145,24 @@ function renderRanking() {
    🔥 RACHAS ACTUALES
 ========================= */
 
-function getValidMeetings() {
-  return meetings.filter(m =>
-    attendance.some(a => a.meeting_id === m.id)
-  );
-}
-
 function calculateCurrentStreak(personId) {
-  const validMeetings = getValidMeetings();
-  if (validMeetings.length === 0) return null;
+  if (meetings.length === 0) return null;
+
+  const ordered = [...meetings].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   let streak = 0;
   let type = null;
 
-  for (let i = validMeetings.length - 1; i >= 0; i--) {
-    const meeting = validMeetings[i];
+  for (let i = 0; i < ordered.length; i++) {
+    const meeting = ordered[i];
 
     const present = attendance.some(
       a => a.person_id == personId && a.meeting_id === meeting.id
     );
 
-    if (i === validMeetings.length - 1) {
+    if (i === 0) {
       type = present ? "present" : "absent";
       streak = 1;
     } else {
@@ -219,11 +216,16 @@ function renderStreaks() {
 ========================= */
 
 function calculateBestStreak(personId) {
-  const validMeetings = getValidMeetings();
+  if (meetings.length === 0) return 0;
+
+  const ordered = [...meetings].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
   let best = 0;
   let current = 0;
 
-  for (let meeting of validMeetings) {
+  for (let meeting of ordered) {
     const present = attendance.some(
       a => a.person_id == personId && a.meeting_id === meeting.id
     );
