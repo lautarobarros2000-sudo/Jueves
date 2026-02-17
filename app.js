@@ -184,28 +184,41 @@ function renderStreaks() {
   const div = document.getElementById("streaks");
   div.innerHTML = "";
 
-  let data = people.map(p => {
+  let positives = [];
+  let negatives = [];
+
+  people.forEach(p => {
     const result = calculateCurrentStreak(p.id);
-    return result
-      ? { name: p.name, ...result }
-      : { name: p.name, type: null, streak: 0 };
+    if (!result) return;
+
+    const data = { name: p.name, ...result };
+
+    if (result.type === "present") {
+      positives.push(data);
+    } else {
+      negatives.push(data);
+    }
   });
 
-  data.sort((a, b) => b.streak - a.streak);
+  positives.sort((a, b) => b.streak - a.streak);
+  negatives.sort((a, b) => b.streak - a.streak);
 
-  data.forEach(p => {
-    if (!p.type) return;
-
-    const emoji = p.type === "present" ? "🔥" : "❄️";
-    const text =
-      p.type === "present"
-        ? `${p.streak} asistiendo`
-        : `${p.streak} sin asistir`;
-
+  // 🔥 POSITIVAS
+  positives.forEach(p => {
     div.innerHTML += `
       <div class="person">
         ${p.name}
-        <span>${emoji} ${text}</span>
+        <span>🔥 ${p.streak} asistiendo</span>
+      </div>
+    `;
+  });
+
+  // ❄️ NEGATIVAS
+  negatives.forEach(p => {
+    div.innerHTML += `
+      <div class="person">
+        ${p.name}
+        <span>❄️ ${p.streak} sin asistir</span>
       </div>
     `;
   });
