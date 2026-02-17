@@ -20,12 +20,13 @@ async function init() {
 
 function renderAll() {
   renderRanking();
-  renderMeetingsLog();
   renderStreaks();
+  renderBestHistoricalStreaks();
+  renderMeetingsLog();
 }
 
 /* =========================
-   CARGA DE DATOS
+   CARGA
 ========================= */
 
 async function loadPeople() {
@@ -84,13 +85,12 @@ async function loadAllData() {
 }
 
 /* =========================
-   GUARDAR ASISTENCIA
+   GUARDAR HOY
 ========================= */
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
   const checked = document.querySelectorAll("input[type='checkbox']:checked");
 
-  // primero borramos registros previos de hoy
   await supabaseClient
     .from("attendance")
     .delete()
@@ -103,14 +103,12 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     });
   }
 
-  alert("Asistencia guardada 🔥");
-
   await loadAllData();
   renderAll();
 });
 
 /* =========================
-   RANKING
+   RANKING GENERAL
 ========================= */
 
 function renderRanking() {
@@ -118,8 +116,7 @@ function renderRanking() {
   div.innerHTML = "";
 
   const rankingData = people.map(p => {
-    const total = attendance.filter(a => a.person_id === p.id).length;
-
+    const total = attendance.filter(a => a.person_id == p.id).length;
     const percentage =
       meetings.length > 0
         ? ((total / meetings.length) * 100).toFixed(0)
@@ -131,10 +128,9 @@ function renderRanking() {
   rankingData.sort((a, b) => b.total - a.total);
 
   rankingData.forEach((p, index) => {
-    let medal = "";
-    if (index === 0) medal = "🥇";
-    if (index === 1) medal = "🥈";
-    if (index === 2) medal = "🥉";
+    const medal = index === 0 ? "🥇" :
+                  index === 1 ? "🥈" :
+                  index === 2 ? "🥉" : "";
 
     div.innerHTML += `
       <div class="person">
@@ -146,59 +142,72 @@ function renderRanking() {
 }
 
 /* =========================
-   🔥 RACHAS
+   🔥 RACHAS ACTUALES
 ========================= */
+
+function getValidMeetings() {
+  return meetings.filter(m =>
+    attendance.some(a => a.meeting_id === m.id)
+  );
+}
+
+function calculateCurrentStreak(personId) {
+  const validMeetings = getValidMeetings();
+  if (validMeetings.length === 0) return null;
+
+  let streak = 0;
+  let type = null;
+
+  for (let i = validMeetings.length - 1; i >= 0; i--) {
+    const meeting = validMeetings[i];
+
+    const present = attendance.some(
+      a => a.person_id == personId && a.meeting_id === meeting.id
+    );
+
+    if (i === validMeetings.length - 1) {
+      type = present ? "present" : "absent";
+      streak = 1;
+    } else {
+      if (
+        (present && type === "present") ||
+        (!present && type === "absent")
+      ) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return { type, streak };
+}
 
 function renderStreaks() {
   const div = document.getElementById("streaks");
   div.innerHTML = "";
 
-  if (meetings.length === 0) {
-    div.innerHTML = "Sin datos aún";
-    return;
-  }
-
-  // ignorar la juntada de hoy si todavía no tiene asistentes
-  const validMeetings = meetings.filter(m => {
-    const attendeesCount = attendance.filter(a => a.meeting_id === m.id).length;
-    return attendeesCount > 0;
+  let data = people.map(p => {
+    const result = calculateCurrentStreak(p.id);
+    return result
+      ? { name: p.name, ...result }
+      : { name: p.name, type: null, streak: 0 };
   });
 
-  people.forEach(person => {
-    let streak = 0;
-    let lastType = null;
+  data.sort((a, b) => b.streak - a.streak);
 
-    for (let i = validMeetings.length - 1; i >= 0; i--) {
-      const meeting = validMeetings[i];
+  data.forEach(p => {
+    if (!p.type) return;
 
-      const wasPresent = attendance.some(
-        a => a.person_id === person.id && a.meeting_id === meeting.id
-      );
-
-      if (i === validMeetings.length - 1) {
-        lastType = wasPresent ? "present" : "absent";
-        streak = 1;
-      } else {
-        if (
-          (wasPresent && lastType === "present") ||
-          (!wasPresent && lastType === "absent")
-        ) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-    }
-
-    const emoji = lastType === "present" ? "🔥" : "❄️";
+    const emoji = p.type === "present" ? "🔥" : "❄️";
     const text =
-      lastType === "present"
-        ? `${streak} juntadas asistiendo`
-        : `${streak} juntadas sin asistir`;
+      p.type === "present"
+        ? `${p.streak} asistiendo`
+        : `${p.streak} sin asistir`;
 
     div.innerHTML += `
       <div class="person">
-        ${person.name}
+        ${p.name}
         <span>${emoji} ${text}</span>
       </div>
     `;
@@ -206,7 +215,59 @@ function renderStreaks() {
 }
 
 /* =========================
-   HISTORIAL CON VER/EDITAR/ELIMINAR
+   🏆 MEJORES RACHAS HISTÓRICAS
+========================= */
+
+function calculateBestStreak(personId) {
+  const validMeetings = getValidMeetings();
+  let best = 0;
+  let current = 0;
+
+  for (let meeting of validMeetings) {
+    const present = attendance.some(
+      a => a.person_id == personId && a.meeting_id === meeting.id
+    );
+
+    if (present) {
+      current++;
+      if (current > best) best = current;
+    } else {
+      current = 0;
+    }
+  }
+
+  return best;
+}
+
+function renderBestHistoricalStreaks() {
+  const div = document.getElementById("bestStreaks");
+  if (!div) return;
+
+  div.innerHTML = "";
+
+  let data = people.map(p => ({
+    name: p.name,
+    best: calculateBestStreak(p.id)
+  }));
+
+  data.sort((a, b) => b.best - a.best);
+
+  data.forEach((p, index) => {
+    const medal = index === 0 ? "🥇" :
+                  index === 1 ? "🥈" :
+                  index === 2 ? "🥉" : "";
+
+    div.innerHTML += `
+      <div class="person">
+        ${p.name}
+        <span>${p.best} seguidas ${medal}</span>
+      </div>
+    `;
+  });
+}
+
+/* =========================
+   HISTORIAL
 ========================= */
 
 function renderMeetingsLog() {
@@ -219,26 +280,21 @@ function renderMeetingsLog() {
     const attendees = attendance
       .filter(a => a.meeting_id === meeting.id)
       .map(a => {
-        const person = people.find(p => p.id === a.person_id);
+        const person = people.find(p => p.id == a.person_id);
         return person ? person.name : "";
       });
 
     const card = document.createElement("div");
-    card.className = "meeting-card";
-
     const header = document.createElement("div");
-    header.className = "meeting-header";
 
     const title = document.createElement("strong");
     title.textContent = `Juntada #${meetingNumber} - ${meeting.date}`;
-
-    const actions = document.createElement("div");
 
     const btnView = document.createElement("button");
     btnView.textContent = "Ver";
 
     const btnEdit = document.createElement("button");
-    btnClick.textContent = "Editar"
+    btnEdit.textContent = "Editar";
 
     const btnDelete = document.createElement("button");
     btnDelete.textContent = "Eliminar";
@@ -252,77 +308,7 @@ function renderMeetingsLog() {
         details.style.display === "none" ? "block" : "none";
     };
 
-    btnEdit.addEventListener("click", async () => {
-  // Obtener asistentes actuales
-  const currentAttendees = attendance
-    .filter(a => a.meeting_id === meeting.id)
-    .map(a => Number(a.person_id));
-
-  // Crear contenido del modal simple
-  let checklistHTML = people.map(p => {
-    const checked = currentAttendees.includes(p.id) ? "checked" : "";
-    return `
-      <label style="display:block;margin-bottom:5px;">
-        <input type="checkbox" value="${p.id}" ${checked} />
-        ${p.name}
-      </label>
-    `;
-  }).join("");
-
-  const container = document.createElement("div");
-  container.innerHTML = `
-    <div style="background:#1e293b;padding:20px;border-radius:10px;max-height:400px;overflow:auto;">
-      <h3>Editar asistentes</h3>
-      ${checklistHTML}
-      <button id="saveEditBtn" style="margin-top:15px;">Guardar Cambios</button>
-    </div>
-  `;
-
-  // Crear overlay
-  const overlay = document.createElement("div");
-  overlay.style.position = "fixed";
-  overlay.style.top = 0;
-  overlay.style.left = 0;
-  overlay.style.width = "100%";
-  overlay.style.height = "100%";
-  overlay.style.background = "rgba(0,0,0,0.7)";
-  overlay.style.display = "flex";
-  overlay.style.alignItems = "center";
-  overlay.style.justifyContent = "center";
-  overlay.appendChild(container);
-
-  document.body.appendChild(overlay);
-
-  document.getElementById("saveEditBtn").addEventListener("click", async () => {
-    const checkedBoxes = container.querySelectorAll("input[type='checkbox']:checked");
-
-    // 1️⃣ borrar asistencias actuales
-    await supabaseClient
-      .from("attendance")
-      .delete()
-      .eq("meeting_id", meeting.id);
-
-    // 2️⃣ insertar nuevas
-    for (let box of checkedBoxes) {
-      await supabaseClient.from("attendance").insert({
-        meeting_id: meeting.id,
-        person_id: box.value
-      });
-    }
-
-    document.body.removeChild(overlay);
-
-    await loadAllData();
-    renderAll();
-  });
-
-  // cerrar si clickean afuera
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) {
-      document.body.removeChild(overlay);
-    }
-  });
-});
+    btnEdit.onclick = () => openEditModal(meeting);
 
     btnDelete.onclick = async () => {
       if (!confirm("¿Eliminar esta juntada?")) return;
@@ -334,18 +320,75 @@ function renderMeetingsLog() {
       renderAll();
     };
 
-    actions.appendChild(btnView);
-    actions.appendChild(btnEdit);
-    actions.appendChild(btnDelete);
-
     header.appendChild(title);
-    header.appendChild(actions);
+    header.appendChild(btnView);
+    header.appendChild(btnEdit);
+    header.appendChild(btnDelete);
 
     card.appendChild(header);
     card.appendChild(details);
-
     div.appendChild(card);
   });
+}
+
+/* =========================
+   MODAL EDITAR
+========================= */
+
+function openEditModal(meeting) {
+  const current = attendance
+    .filter(a => a.meeting_id === meeting.id)
+    .map(a => Number(a.person_id));
+
+  const overlay = document.createElement("div");
+  overlay.style = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.7);
+    display:flex;align-items:center;justify-content:center;
+  `;
+
+  const box = document.createElement("div");
+  box.style = `
+    background:#1e293b;padding:20px;border-radius:10px;
+    max-height:400px;overflow:auto;
+  `;
+
+  box.innerHTML = `
+    <h3>Editar asistentes</h3>
+    ${people.map(p => `
+      <label style="display:block;margin-bottom:5px;">
+        <input type="checkbox" value="${p.id}" ${current.includes(p.id) ? "checked" : ""}>
+        ${p.name}
+      </label>
+    `).join("")}
+    <button id="saveEdit">Guardar</button>
+  `;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  box.querySelector("#saveEdit").onclick = async () => {
+    const checked = box.querySelectorAll("input:checked");
+
+    await supabaseClient.from("attendance")
+      .delete()
+      .eq("meeting_id", meeting.id);
+
+    for (let c of checked) {
+      await supabaseClient.from("attendance").insert({
+        meeting_id: meeting.id,
+        person_id: c.value
+      });
+    }
+
+    document.body.removeChild(overlay);
+    await loadAllData();
+    renderAll();
+  };
+
+  overlay.onclick = e => {
+    if (e.target === overlay) document.body.removeChild(overlay);
+  };
 }
 
 init();
