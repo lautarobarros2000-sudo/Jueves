@@ -11,9 +11,12 @@ let meetings = [];
 let attendance = [];
 let todayMeetingId = null;
 
+/* =========================
+   INIT
+========================= */
+
 async function init() {
   await loadPeople();
-  await ensureTodayMeeting();
   await loadAllData();
   renderAll();
 }
@@ -50,26 +53,6 @@ async function loadPeople() {
   });
 }
 
-async function ensureTodayMeeting() {
-  const today = new Date().toISOString().split("T")[0];
-
-  const { data } = await supabaseClient
-    .from("meetings")
-    .select("*")
-    .eq("date", today);
-
-  if (!data || data.length === 0) {
-    const { data: newMeeting } = await supabaseClient
-      .from("meetings")
-      .insert({ date: today })
-      .select();
-
-    todayMeetingId = newMeeting?.[0]?.id;
-  } else {
-    todayMeetingId = data[0].id;
-  }
-}
-
 async function loadAllData() {
   const { data: m } = await supabaseClient
     .from("meetings")
@@ -85,10 +68,29 @@ async function loadAllData() {
 }
 
 /* =========================
-   GUARDAR HOY
+   GUARDAR HOY (CORREGIDO)
 ========================= */
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
+  const today = new Date().toISOString().split("T")[0];
+
+  // Buscar si ya existe reunión hoy
+  const { data: existing } = await supabaseClient
+    .from("meetings")
+    .select("*")
+    .eq("date", today);
+
+  if (!existing || existing.length === 0) {
+    const { data: newMeeting } = await supabaseClient
+      .from("meetings")
+      .insert({ date: today })
+      .select();
+
+    todayMeetingId = newMeeting[0].id;
+  } else {
+    todayMeetingId = existing[0].id;
+  }
+
   const checked = document.querySelectorAll("input[type='checkbox']:checked");
 
   await supabaseClient
@@ -203,7 +205,7 @@ function renderStreaks() {
   positives.sort((a, b) => b.streak - a.streak);
   negatives.sort((a, b) => b.streak - a.streak);
 
-  // 🔥 POSITIVAS
+  // 🔥 POSITIVAS ARRIBA
   positives.forEach(p => {
     div.innerHTML += `
       <div class="person">
@@ -213,7 +215,7 @@ function renderStreaks() {
     `;
   });
 
-  // ❄️ NEGATIVAS
+  // ❄️ NEGATIVAS ABAJO
   negatives.forEach(p => {
     div.innerHTML += `
       <div class="person">
@@ -299,111 +301,13 @@ function renderMeetingsLog() {
         return person ? person.name : "";
       });
 
-    const card = document.createElement("div");
-    const header = document.createElement("div");
-
-    const title = document.createElement("strong");
-    title.textContent = `Juntada #${meetingNumber} - ${meeting.date}`;
-
-    const btnView = document.createElement("button");
-    btnView.textContent = "Ver";
-
-    const btnEdit = document.createElement("button");
-    btnEdit.textContent = "Editar";
-
-    const btnDelete = document.createElement("button");
-    btnDelete.textContent = "Eliminar";
-
-    const details = document.createElement("div");
-    details.style.display = "none";
-    details.textContent = attendees.join(", ") || "Sin asistentes";
-
-    btnView.onclick = () => {
-      details.style.display =
-        details.style.display === "none" ? "block" : "none";
-    };
-
-    btnEdit.onclick = () => openEditModal(meeting);
-
-    btnDelete.onclick = async () => {
-      if (!confirm("¿Eliminar esta juntada?")) return;
-
-      await supabaseClient.from("attendance").delete().eq("meeting_id", meeting.id);
-      await supabaseClient.from("meetings").delete().eq("id", meeting.id);
-
-      await loadAllData();
-      renderAll();
-    };
-
-    header.appendChild(title);
-    header.appendChild(btnView);
-    header.appendChild(btnEdit);
-    header.appendChild(btnDelete);
-
-    card.appendChild(header);
-    card.appendChild(details);
-    div.appendChild(card);
+    div.innerHTML += `
+      <div class="person">
+        <strong>Juntada #${meetingNumber} - ${meeting.date}</strong>
+        <div>${attendees.join(", ") || "Sin asistentes"}</div>
+      </div>
+    `;
   });
-}
-
-/* =========================
-   MODAL EDITAR
-========================= */
-
-function openEditModal(meeting) {
-  const current = attendance
-    .filter(a => a.meeting_id === meeting.id)
-    .map(a => Number(a.person_id));
-
-  const overlay = document.createElement("div");
-  overlay.style = `
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,0.7);
-    display:flex;align-items:center;justify-content:center;
-  `;
-
-  const box = document.createElement("div");
-  box.style = `
-    background:#1e293b;padding:20px;border-radius:10px;
-    max-height:400px;overflow:auto;
-  `;
-
-  box.innerHTML = `
-    <h3>Editar asistentes</h3>
-    ${people.map(p => `
-      <label style="display:block;margin-bottom:5px;">
-        <input type="checkbox" value="${p.id}" ${current.includes(p.id) ? "checked" : ""}>
-        ${p.name}
-      </label>
-    `).join("")}
-    <button id="saveEdit">Guardar</button>
-  `;
-
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  box.querySelector("#saveEdit").onclick = async () => {
-    const checked = box.querySelectorAll("input:checked");
-
-    await supabaseClient.from("attendance")
-      .delete()
-      .eq("meeting_id", meeting.id);
-
-    for (let c of checked) {
-      await supabaseClient.from("attendance").insert({
-        meeting_id: meeting.id,
-        person_id: c.value
-      });
-    }
-
-    document.body.removeChild(overlay);
-    await loadAllData();
-    renderAll();
-  };
-
-  overlay.onclick = e => {
-    if (e.target === overlay) document.body.removeChild(overlay);
-  };
 }
 
 init();
