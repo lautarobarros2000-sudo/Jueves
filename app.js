@@ -1,93 +1,88 @@
-const supabaseUrl = "https://jvefzcnujhpqgyedmmxp.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
+// ==============================
+// 🔐 SUPABASE CONFIG (IronKey)
+// ==============================
 
-const supabaseClient = window.supabase.createClient(
-  supabaseUrl,
-  supabaseKey
+const SUPABASE_URL = "https://jvefzcnujhpqgyedmmxp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
 );
+
+// ==============================
+// 📦 VARIABLES GLOBALES
+// ==============================
 
 let people = [];
 let meetings = [];
 let attendance = [];
 let todayMeetingId = null;
 
-/* =========================
-   INIT (SIN crear reunión automática)
-========================= */
+// ==============================
+// 🚀 INIT
+// ==============================
+
+init();
 
 async function init() {
   await loadPeople();
+  await ensureTodayMeeting();
   await loadAllData();
   renderAll();
 }
 
-function renderAll() {
-  renderRanking();
-  renderStreaks();
-  renderBestHistoricalStreaks();
-  renderMeetingsLog();
-}
-
-/* =========================
-   CARGA
-========================= */
+// ==============================
+// 📥 LOAD DATA
+// ==============================
 
 async function loadPeople() {
-  const { data } = await supabaseClient
-    .from("people")
-    .select("*")
-    .order("name");
-
+  const { data } = await supabaseClient.from("people").select("*");
   people = data || [];
-
-  const container = document.getElementById("people-list");
-  container.innerHTML = "";
-
-  people.forEach(p => {
-    container.innerHTML += `
-      <label class="person">
-        ${p.name}
-        <input type="checkbox" value="${p.id}" />
-      </label>
-    `;
-  });
 }
 
 async function loadAllData() {
-  const { data: m } = await supabaseClient
+  const { data: meetingsData } = await supabaseClient
     .from("meetings")
-    .select("*")
-    .order("date", { ascending: true });
+    .select("*");
 
-  const { data: a } = await supabaseClient
+  const { data: attendanceData } = await supabaseClient
     .from("attendance")
     .select("*");
 
-  meetings = m || [];
-  attendance = a || [];
+  meetings = meetingsData || [];
+  attendance = attendanceData || [];
 }
 
-/* =========================
-   GUARDAR HOY (crea solo si hace falta)
-========================= */
-
-document.getElementById("saveBtn").addEventListener("click", async () => {
+async function ensureTodayMeeting() {
   const today = new Date().toISOString().split("T")[0];
 
-  const { data: existing } = await supabaseClient
+  const { data } = await supabaseClient
     .from("meetings")
     .select("*")
     .eq("date", today);
 
-  if (!existing || existing.length === 0) {
+  if (data && data.length > 0) {
+    todayMeetingId = data[0].id;
+  } else {
+    todayMeetingId = null; // 🔥 NO crear automáticamente
+  }
+}
+
+// ==============================
+// 💾 SAVE BUTTON
+// ==============================
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+  const today = new Date().toISOString().split("T")[0];
+
+  if (!todayMeetingId) {
     const { data: newMeeting } = await supabaseClient
       .from("meetings")
       .insert({ date: today })
       .select();
 
-    todayMeetingId = newMeeting[0].id;
-  } else {
-    todayMeetingId = existing[0].id;
+    todayMeetingId = newMeeting?.[0]?.id;
   }
 
   const checked = document.querySelectorAll("input[type='checkbox']:checked");
@@ -108,77 +103,69 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   renderAll();
 });
 
-/* =========================
-   RANKING
-========================= */
+// ==============================
+// 🏆 RANKING TOTAL
+// ==============================
 
 function renderRanking() {
   const div = document.getElementById("ranking");
   div.innerHTML = "";
 
-  const rankingData = people.map(p => {
+  let data = people.map(p => {
     const total = attendance.filter(a => a.person_id == p.id).length;
-    const percentage =
-      meetings.length > 0
-        ? ((total / meetings.length) * 100).toFixed(0)
-        : 0;
-
-    return { name: p.name, total, percentage };
+    return { name: p.name, total };
   });
 
-  rankingData.sort((a, b) => b.total - a.total);
+  data.sort((a, b) => b.total - a.total);
 
-  rankingData.forEach((p, index) => {
-    const medal = index === 0 ? "🥇" :
-                  index === 1 ? "🥈" :
-                  index === 2 ? "🥉" : "";
-
+  data.forEach(p => {
     div.innerHTML += `
       <div class="person">
         ${p.name}
-        <span>${p.total} (${p.percentage}%) ${medal}</span>
+        <span>${p.total}</span>
       </div>
     `;
   });
 }
 
-/* =========================
-   🔥 RACHAS ACTUALES
-========================= */
+// ==============================
+// 🔥❄️ RACHAS CONSECUTIVAS
+// ==============================
 
 function calculateCurrentStreak(personId) {
-  if (meetings.length === 0) return null;
+  if (meetings.length === 0) return 0;
 
   const ordered = [...meetings].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
+    (a, b) => new Date(a.date) - new Date(b.date)
   );
 
   let streak = 0;
-  let type = null;
 
-  for (let i = 0; i < ordered.length; i++) {
+  for (let i = ordered.length - 1; i >= 0; i--) {
     const meeting = ordered[i];
 
     const present = attendance.some(
       a => a.person_id == personId && a.meeting_id === meeting.id
     );
 
-    if (i === 0) {
-      type = present ? "present" : "absent";
-      streak = 1;
-    } else {
-      if (
-        (present && type === "present") ||
-        (!present && type === "absent")
-      ) {
+    if (present) {
+      if (streak >= 0) {
         streak++;
+      } else {
+        break;
+      }
+    } else {
+      if (streak === 0) {
+        streak = -1;
+      } else if (streak < 0) {
+        streak--;
       } else {
         break;
       }
     }
   }
 
-  return { type, streak };
+  return streak;
 }
 
 function renderStreaks() {
@@ -189,27 +176,24 @@ function renderStreaks() {
   let negatives = [];
 
   people.forEach(p => {
-    const result = calculateCurrentStreak(p.id);
-    if (!result) return;
+    const streak = calculateCurrentStreak(p.id);
 
-    const data = { name: p.name, ...result };
-
-    if (result.type === "present") {
-      positives.push(data);
+    if (streak > 0) {
+      positives.push({ name: p.name, streak });
     } else {
-      negatives.push(data);
+      negatives.push({ name: p.name, streak });
     }
   });
 
   positives.sort((a, b) => b.streak - a.streak);
-  negatives.sort((a, b) => b.streak - a.streak);
+  negatives.sort((a, b) => a.streak - b.streak);
 
   // 🔥 POSITIVAS ARRIBA
   positives.forEach(p => {
     div.innerHTML += `
       <div class="person">
         ${p.name}
-        <span>🔥 ${p.streak} asistiendo</span>
+        <span>🔥 ${p.streak} seguidas asistiendo</span>
       </div>
     `;
   });
@@ -219,135 +203,54 @@ function renderStreaks() {
     div.innerHTML += `
       <div class="person">
         ${p.name}
-        <span>❄️ ${p.streak} sin asistir</span>
+        <span>❄️ ${Math.abs(p.streak)} sin asistir</span>
       </div>
     `;
   });
 }
 
-/* =========================
-   HISTORIAL COMPLETO (restaurado)
-========================= */
+// ==============================
+// 📜 HISTORIAL
+// ==============================
 
 function renderMeetingsLog() {
   const div = document.getElementById("meetingsLog");
   div.innerHTML = "";
 
-  meetings.forEach((meeting, index) => {
-    const meetingNumber = index + 1;
+  const ordered = [...meetings].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
+  ordered.forEach(m => {
     const attendees = attendance
-      .filter(a => a.meeting_id === meeting.id)
-      .map(a => {
-        const person = people.find(p => p.id == a.person_id);
-        return person ? person.name : "";
-      });
+      .filter(a => a.meeting_id === m.id)
+      .map(a => people.find(p => p.id == a.person_id)?.name)
+      .filter(Boolean);
 
-    const card = document.createElement("div");
-    const header = document.createElement("div");
-
-    const title = document.createElement("strong");
-    title.textContent = `Juntada #${meetingNumber} - ${meeting.date}`;
-
-    const btnView = document.createElement("button");
-    btnView.textContent = "Ver";
-
-    const btnEdit = document.createElement("button");
-    btnEdit.textContent = "Editar";
-
-    const btnDelete = document.createElement("button");
-    btnDelete.textContent = "Eliminar";
-
-    const details = document.createElement("div");
-    details.style.display = "none";
-    details.textContent = attendees.join(", ") || "Sin asistentes";
-
-    btnView.onclick = () => {
-      details.style.display =
-        details.style.display === "none" ? "block" : "none";
-    };
-
-    btnEdit.onclick = () => openEditModal(meeting);
-
-    btnDelete.onclick = async () => {
-      if (!confirm("¿Eliminar esta juntada?")) return;
-
-      await supabaseClient.from("attendance").delete().eq("meeting_id", meeting.id);
-      await supabaseClient.from("meetings").delete().eq("id", meeting.id);
-
-      await loadAllData();
-      renderAll();
-    };
-
-    header.appendChild(title);
-    header.appendChild(btnView);
-    header.appendChild(btnEdit);
-    header.appendChild(btnDelete);
-
-    card.appendChild(header);
-    card.appendChild(details);
-    div.appendChild(card);
+    div.innerHTML += `
+      <div class="meeting">
+        <strong>${m.date}</strong>
+        <p>${attendees.length ? attendees.join(", ") : "Sin asistentes"}</p>
+        <button onclick="deleteMeeting(${m.id})">Eliminar</button>
+      </div>
+    `;
   });
 }
 
-/* =========================
-   MODAL EDITAR (igual que antes)
-========================= */
+async function deleteMeeting(id) {
+  await supabaseClient.from("attendance").delete().eq("meeting_id", id);
+  await supabaseClient.from("meetings").delete().eq("id", id);
 
-function openEditModal(meeting) {
-  const current = attendance
-    .filter(a => a.meeting_id === meeting.id)
-    .map(a => Number(a.person_id));
-
-  const overlay = document.createElement("div");
-  overlay.style = `
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,0.7);
-    display:flex;align-items:center;justify-content:center;
-  `;
-
-  const box = document.createElement("div");
-  box.style = `
-    background:#1e293b;padding:20px;border-radius:10px;
-    max-height:400px;overflow:auto;
-  `;
-
-  box.innerHTML = `
-    <h3>Editar asistentes</h3>
-    ${people.map(p => `
-      <label style="display:block;margin-bottom:5px;">
-        <input type="checkbox" value="${p.id}" ${current.includes(p.id) ? "checked" : ""}>
-        ${p.name}
-      </label>
-    `).join("")}
-    <button id="saveEdit">Guardar</button>
-  `;
-
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  box.querySelector("#saveEdit").onclick = async () => {
-    const checked = box.querySelectorAll("input:checked");
-
-    await supabaseClient.from("attendance")
-      .delete()
-      .eq("meeting_id", meeting.id);
-
-    for (let c of checked) {
-      await supabaseClient.from("attendance").insert({
-        meeting_id: meeting.id,
-        person_id: c.value
-      });
-    }
-
-    document.body.removeChild(overlay);
-    await loadAllData();
-    renderAll();
-  };
-
-  overlay.onclick = e => {
-    if (e.target === overlay) document.body.removeChild(overlay);
-  };
+  await loadAllData();
+  renderAll();
 }
 
-init();
+// ==============================
+// 🔁 RENDER ALL
+// ==============================
+
+function renderAll() {
+  renderRanking();
+  renderStreaks();
+  renderMeetingsLog();
+}
