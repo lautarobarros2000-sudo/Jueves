@@ -95,6 +95,7 @@ function renderAll() {
   renderStreaks();
   renderBestHistoricalStreaks();
   renderMeetingsLog();
+  renderStreakLegend();
 }
 
 /* ========================= CARGA ========================= */
