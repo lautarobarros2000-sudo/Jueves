@@ -3,12 +3,17 @@ const supabaseUrl =
 
 const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
+
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
   supabaseKey
-
 );
+
 const ADMIN_PASSWORD = "Faro";
+
+
+/* ========================= PASSWORD ========================= */
+
 function requirePassword() {
   const input = prompt("Ingresá la contraseña");
 
@@ -19,6 +24,57 @@ function requirePassword() {
 
   return true;
 }
+
+
+/* ========================= EMOJIS RACHAS ========================= */
+
+const STREAK_EMOJIS = {
+
+  positive: [
+    { value: 50, emoji: "🏆" },
+    { value: 40, emoji: "👑" },
+    { value: 30, emoji: "🌟" },
+    { value: 20, emoji: "⚡" },
+    { value: 10, emoji: "💎" },
+    { value: 5, emoji: "🚀" },
+    { value: 3, emoji: "🔥" }
+  ],
+
+  negative: [
+    { value: 50, emoji: "⚰️" },
+    { value: 40, emoji: "🪦" },
+    { value: 30, emoji: "☠️" },
+    { value: 20, emoji: "💀" },
+    { value: 10, emoji: "🌪️" },
+    { value: 5, emoji: "🌧️" },
+    { value: 3, emoji: "🧊" }
+  ]
+
+};
+
+
+/* ========================= FUNCION EMOJI ========================= */
+
+function getStreakEmoji(personId) {
+
+  const result = calculateCurrentStreak(personId);
+
+  if (!result) return "";
+
+  const dictionary =
+    result.type === "present"
+      ? STREAK_EMOJIS.positive
+      : STREAK_EMOJIS.negative;
+
+  for (let rule of dictionary) {
+    if (result.streak >= rule.value) {
+      return rule.emoji;
+    }
+  }
+
+  return "";
+}
+
 
 let people = [];
 let meetings = [];
@@ -145,7 +201,12 @@ function renderRanking() {
         ? ((total / meetings.length) * 100).toFixed(0)
         : 0;
 
-    return { name: p.name, total, percentage };
+return {
+  name: p.name,
+  total,
+  percentage,
+  emoji: getStreakEmoji(p.id)
+};
   });
 
   rankingData.sort((a, b) => b.total - a.total);
@@ -162,7 +223,7 @@ function renderRanking() {
 
     div.innerHTML += `
       <div class="person">
-        ${p.name}
+${p.name} ${p.emoji || ""}
         <span>${p.total} (${p.percentage}%) ${medal}</span>
       </div>
     `;
