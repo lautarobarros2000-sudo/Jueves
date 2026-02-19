@@ -361,6 +361,7 @@ function renderMeetingsLog() {
     btnEdit.onclick = () => {
   if (!requirePassword()) return;
       openEditModal(meeting);
+    };
 
     btnDelete.onclick = async () => {
       if (!requirePassword()) return;
