@@ -3,11 +3,22 @@ const supabaseUrl =
 
 const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZWZ6Y251amhwcWd5ZWRtbXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDAwODYsImV4cCI6MjA4NjMxNjA4Nn0.uA4GjxOThyoEbps9W2zcZfhHY6DNCS-QE_SgtpeDB5s";
-
 const supabaseClient = window.supabase.createClient(
   supabaseUrl,
   supabaseKey
+
 );
+const ADMIN_PASSWORD = "Faro";
+function requirePassword() {
+  const input = prompt("Ingresá la contraseña");
+
+  if (input !== ADMIN_PASSWORD) {
+    alert("Contraseña incorrecta");
+    return false;
+  }
+
+  return true;
+}
 
 let people = [];
 let meetings = [];
@@ -85,6 +96,8 @@ async function loadAllData() {
 /* ========================= GUARDAR HOY ========================= */
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
+  if (!requirePassword()) return;
+
   const today = new Date().toISOString().split("T")[0];
 
   // Si no existe juntada hoy, la creamos recién acá
@@ -345,10 +358,12 @@ function renderMeetingsLog() {
           : "none";
     };
 
-    btnEdit.onclick = () =>
+    btnEdit.onclick = () => {
+  if (!requirePassword()) return;
       openEditModal(meeting);
 
     btnDelete.onclick = async () => {
+      if (!requirePassword()) return;
       if (!confirm("¿Eliminar esta juntada?")) return;
 
       await supabaseClient
