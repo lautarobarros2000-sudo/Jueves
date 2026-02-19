@@ -520,5 +520,40 @@ function openEditModal(meeting) {
       document.body.removeChild(overlay);
   };
 }
+/* ========================= DICCIONARIO EMOJIS ========================= */
+
+function renderStreakDictionary() {
+
+  const el = document.getElementById("streakDictionary");
+
+  if (!el) return;
+
+  el.innerHTML = `
+  <div style="font-size:13px;margin-bottom:10px">
+
+  <b>🔥 Racha positiva</b><br>
+  🔥 3 —
+  🚀 5 —
+  💎 10 —
+  ⚡ 20 —
+  🌟 30 —
+  👑 40 —
+  🏆 50+
+
+  <br><br>
+
+  <b>❄️ Racha negativa</b><br>
+  🧊 3 —
+  🌧️ 5 —
+  🌪️ 10 —
+  💀 20 —
+  ☠️ 30 —
+  🪦 40 —
+  ⚰️ 50+
+
+  </div>
+  `;
+}
 
 init();
+
