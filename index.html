@@ -3,58 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Juntada Tracker</title>
+  <title>Misa de Jueves</title>
   <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<div class="container">
+<div class="app-shell">
 
+  <!-- ===== HEADER ===== -->
   <header class="app-header">
-    <h1>🍻 Juntada Tracker</h1>
+    <div class="brand">
+      <span class="brand-icon">🍺</span>
+      <h1>Misa de <span>Jueves</span></h1>
+    </div>
     <button class="btn-nueva" id="openNewMeetingBtn">+ Nueva Juntada</button>
   </header>
 
-  <!-- TABS -->
-  <nav class="tabs">
-    <button class="tab active" data-tab="ranking">🏆 Ranking</button>
-    <button class="tab" data-tab="rachas">🔥 Rachas</button>
-    <button class="tab" data-tab="historial">📅 Historial</button>
-  </nav>
+  <!-- ===== SIDEBAR (desktop) ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Emojis de Racha</div>
+    <div id="streakDictionary"></div>
+  </aside>
 
-  <!-- TAB: RANKING -->
-  <section class="tab-content active" id="tab-ranking">
-    <div class="card">
-      <div id="streakDictionary"></div>
-      <div id="ranking"></div>
-    </div>
-    <div class="card">
-      <h2>🏆 Mejores Rachas Históricas</h2>
-      <div id="bestStreaks"></div>
-    </div>
-  </section>
+  <!-- ===== MAIN ===== -->
+  <main>
 
-  <!-- TAB: RACHAS -->
-  <section class="tab-content" id="tab-rachas">
-    <div class="card">
-      <div id="streaks"></div>
-    </div>
-  </section>
+    <!-- TABS (mobile only) -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="ranking">🏆 Ranking</button>
+      <button class="tab" data-tab="rachas">🔥 Rachas</button>
+      <button class="tab" data-tab="historial">📅 Historial</button>
+    </nav>
 
-  <!-- TAB: HISTORIAL -->
-  <section class="tab-content" id="tab-historial">
-    <div class="card">
-      <div id="meetingsLog"></div>
-    </div>
-  </section>
+    <div class="main-content">
 
-</div>
+      <!-- RANKING TAB -->
+      <div class="tab-content active card-full" id="tab-ranking-wrapper">
 
-<!-- MODAL: NUEVA JUNTADA -->
+        <!-- Dict mobile only -->
+        <div class="card mobile-dict" style="display:none;" id="mobile-dict-card">
+          <div id="streakDictionaryMobile"></div>
+        </div>
+
+        <div class="card" id="ranking-card">
+          <h2>🏆 Ranking General</h2>
+          <div id="ranking"></div>
+        </div>
+
+        <div class="card" id="beststreaks-card">
+          <h2>🏆 Rachas Históricas</h2>
+          <div id="bestStreaks"></div>
+        </div>
+
+      </div>
+
+      <!-- RACHAS TAB -->
+      <div class="tab-content card-full" id="tab-rachas-wrapper">
+        <div class="card">
+          <h2>🔥 Rachas Actuales</h2>
+          <div id="streaks"></div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL TAB -->
+      <div class="tab-content card-full" id="tab-historial-wrapper">
+        <div class="card">
+          <h2>📅 Historial de Juntadas</h2>
+          <div id="meetingsLog"></div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </main>
+
+</div><!-- /app-shell -->
+
+<!-- ===== MODAL: NUEVA JUNTADA ===== -->
 <div class="modal-overlay" id="newMeetingOverlay">
   <div class="modal-box">
     <h3>📅 Nueva Juntada</h3>
@@ -62,7 +88,7 @@
     <label class="field-label">Fecha del encuentro</label>
     <input type="date" id="meetingDateInput" class="date-input" />
 
-    <label class="field-label" style="margin-top:16px;">¿Quiénes asistieron?</label>
+    <label class="field-label" style="margin-top:18px;">¿Quiénes asistieron?</label>
     <div id="people-list" class="people-grid"></div>
 
     <div class="modal-actions">
