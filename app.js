@@ -448,9 +448,9 @@ function renderMeetingsLog() {
 /* ========================= EDIT MODAL ========================= */
 
 function openEditModal(meeting) {
-  const current = attendance
-    .filter(a => a.meeting_id === meeting.id)
-    .map(a => Number(a.person_id));
+const current = attendance
+  .filter(a => a.meeting_id === meeting.id)
+  .map(a => String(a.person_id));  // ← string, no número
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay open";
