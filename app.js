@@ -258,8 +258,7 @@ function renderRanking() {
     const percentage = meetings.length > 0
       ? ((total / meetings.length) * 100).toFixed(0)
       : 0;
-    return { name: p.name, total, percentage, emoji: getStreakEmoji(p.id) };
-     // AGREGÁ ESTO:
+
     if (p.name === "Pancho") {
       console.log("Pancho total:", total);
       console.log("meetings.length:", meetings.length);
@@ -267,7 +266,6 @@ function renderRanking() {
     }
 
     return { name: p.name, total, percentage, emoji: getStreakEmoji(p.id) };
-  
   });
 
   rankingData.sort((a, b) => b.total - a.total);
