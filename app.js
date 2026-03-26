@@ -223,18 +223,18 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
     if (!confirm(`Ya existe una juntada el ${selectedDate}. ¿Querés sobrescribir la asistencia?`)) return;
     meetingId = existing.id;
   } else {
-   const { data: newMeeting } = await supabaseClient
-  .from("meetings")
-  .insert({ date: selectedDate })
-  .select();
+    const { data: newMeeting } = await supabaseClient
+      .from("meetings")
+      .insert({ date: selectedDate })
+      .select();
 
-meetingId = newMeeting?.[0]?.id;
+    meetingId = newMeeting?.[0]?.id;
 
-// NUEVO: si no se creó la juntada, parar acá
-if (!meetingId) {
-  alert("Error al crear la juntada. Intentá de nuevo.");
-  return;
-}
+    if (!meetingId) {
+      alert("Error al crear la juntada. Intentá de nuevo.");
+      return;
+    }
+  }
 
   const checked = document.querySelectorAll("#people-list input[type='checkbox']:checked");
 
