@@ -12,11 +12,11 @@ jobs:
     steps:
       - name: Ping Supabase
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-          'https://jvefzcnujhpqgyedmmxp.supabase.co/auth/v1/health')
+          STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" \
+          'https://jvefzcnujhpqgyedmmxp.supabase.co')
 
           echo "Status: $STATUS"
 
-          if [ "$STATUS" -ne 200 ]; then
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 400 ]; then
             exit 1
           fi
